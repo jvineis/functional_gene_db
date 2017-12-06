@@ -1,0 +1,23 @@
+#!/bin/bash
+
+module load python/3.6.3-201710101533
+for i in `cat cgl.txt`
+do 
+    wget "$i"
+done
+
+for i in `cat genome_id_list.txt`;
+do
+    gunzip "$i"1.1.fsa_nt.gz
+    anvi-script-reformat-fasta "$i"1.1.fsa_nt --simplify-names -o "$i"_simple.fa
+    rm "$i"1.1.fsa_nt
+    anvi-gen-contigs-database -f "$i"_simple.fa -n "$i" -o "$i"_contigs.db --skip-mindful-splitting
+    anvi-run-hmms -c "$i"_contigs.db -H /users/jvineis/ncbi_genome_db/nirS/ -T 30
+    anvi-run-hmms -c "$i"_contigs.db -H /users/jvineis/ncbi_genome_db/nrfA/ -T 30
+    anvi-run-hmms -c "$i"_contigs.db -H /users/jvineis/ncbi_genome_db/dsrB/ -T 30
+    anvi-run-hmms -c "$i"_contigs.db -T 30    
+    anvi-get-sequences-for-hmm-hits -c "$i"_contigs.db --hmm-source nirS -o "$i".nirS.fa
+    anvi-get-sequences-for-hmm-hits -c "$i"_contigs.db --hmm-source dsrB -o "$i".dsrB.fa
+    anvi-get-sequences-for-hmm-hits -c "$i"_contigs.db --hmm-source nrfA -o "$i".nrfA.fa
+done
+

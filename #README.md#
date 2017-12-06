@@ -1,0 +1,8 @@
+# functional_gene_db
+Steps to create a fasta file of functional genes from 6000 ncbi "Gold" genomes and 8000 genomes derived from [Parks et al](https://www.nature.com/articles/s41564-017-0012-7).
+
+## Get the fasta files of genomes from the Parks study.
+
+1.  we need a list of the genome names that can be found [her](
+     
+
