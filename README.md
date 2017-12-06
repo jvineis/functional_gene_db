@@ -5,10 +5,10 @@
 
 2.I made a list of the first column only and created two files from this file.  One contains the name of the NCBI file with the trailing zeros removed, the other contains the ftp addresses of each of the files.  Here is how i did it.  All necessary files are int he repository
 
-   sed 's/0000000//g' genome_ids_list.txt > fix
-   mv fix genome_ids_list.txt  
+    sed 's/0000000//g' genome_ids_list.txt > fix
+    mv fix genome_ids_list.txt  
 
-   python create_file_names.py genome_ids_list.txt complete-geneome-list-paths.txt
+    python create_file_names.py genome_ids_list.txt complete-geneome-list-paths.txt
 
 3.Then I made a bunch of temp direcories using a file with a single column of numbers 1:40 called nums
 
