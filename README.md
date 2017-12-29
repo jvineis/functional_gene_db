@@ -67,11 +67,59 @@
      
     d =  c("Bacteroides","Colostidium","Alphaproteobacteria".....)
     work = tax_name(d, get = c("phylum","class","order","family","genus"), db = "ncbi")
-    write.table(work, "~/scripts/databas/functional_fa_dbs/raw_taxit.txt"
+    write.table(work, "~/scripts/databas/functional_fa_dbs/raw_taxit.txt")
+
 
 12.I added the taxonomic string found in raw_taxit.txt produced by the R code above to the appropriate defline using mu-convert-ncbi-parks-ids-to-taxastring.py. Done like this for each functional gene.    
 
     python ~/scripts/mu-convert-ncbi-parks-ids-to-taxastring.py nirS_ids.txt raw_taxit.txt nirS.tax
 
-Each of these collections can now be used as a db to search using vsearch or converted into a blast databaase etc.. 
+if you see an error here its possible that you need to remove the first line (header information) of your raw_taxit.txt file
+
+Each of these collections can now be used as a db to search using vsearch or converted into a blast databaase etc. in the same way that you use the silva database for your 16S data.  Enjoy!  If you have another maker that you would like to explore, just let me know and I'll make it happen :) 
+
+#Build a Phyloseq Object using the output nodes from MED and vsearch taxonomic assignment
+
+1.Run MED in the way you like.  Something like this will do.
+
+    decompose -M 20 sequences-padded.fa
+
+2.In the output, you will find a file called NODE-REPRESENTATIVES.fasta.  We need to fix this file in order to proceed.
+
+    sed 's/-//g' NODE-REPRESENTATIVES.fasta | sed 's/\|/_/g' | sed 's/:/_/g' > NODE-REPRESENTATIVES.fa
+
+3.Obtain taxonomy using vsearch.  
+
+    vsearch --usearch_global NODE-REPRESENTATIVES.fa --db nirS_ncbi_parks.fa --blast6out NODE-HITS.txt --id 0.6
+	 
+4.The following script will produce PHYLOSEQ-TAX-OBJECT.txt and PHYLOSEQ-MATRIX-OBJECT.txt that will be used for input into R as the otu_table and tax_table.
+
+     mu-silva_ids_to_phyloseq.py -tax_ref nirS.tax -hits NODE-HITS.txt -med MATRIX-COUNT.txt -fa NODE-REPRESENTATIVES.fa
+
+5.Now you need a tree file to do some amazing expoloration with phyloseq.  I use MUSCLE v3.8.31 to align my NODE-REPRESENTATIVES.fa like this.
+
+    muscle -in NODE-REPRESENTATIVES.fa -out nirS-muscle-alignment.fa
+
+6.Build the tree using FastTree http://www.microbesonline.org/fasttree/
+
+    FastTree -nt nirS-muscle-alignment.fa > nirS_fasttree.tre
+
+7.Now you have everything that you need to build a Phyloseq object using R.  Make sure that you have R version 3.4, bioconductor 3.6 and phyloseq 1.22.  There are bugs in the earlier version of phyloseq.  You don't need to have any metadata but it sure does help. The sample names in the metadata file must be exactly the same as those contained in the PHYLOSEQ-MATRIX-OBJECT and you will need a header for each column.  
+
+    library("phyloseq")
+    library("ape")
+    mat_nirS = read.table("PHYLOSEQ-MATRIX-OBJECT.txt", header = TRUE, sep = "\t", row.names = 1)
+    tax_nirS = read.table("PHYLOSEQ-TAX-OBJECT.txt", header = TRUE, sep = ";", row.names = 1)
+    meta_nirS = read.table("nrfA-map.txt", header = TRUE, sep = "\t", row.names = 1)
+    tree_nirS = read.tree("nirS_fasttree.tre")    
+
+    mat_nirS = as.matrix(mat_nirS)
+    tax_nirS = as.matrix(tax_nirS)
+
+    OTU = otu_table(mat_nirS, taxa_are_rows = TRUE)
+    TAX = tax_table(tax_nirS)
+    META = sample_data(meta_nirS)
+
+    nrfA_physeq = phyloseq(OTU,TAX,META,tree_nirS)
+
 
