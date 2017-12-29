@@ -71,7 +71,7 @@ for key in node_hits_dict.keys():
 #  Add the nodes that rec'd no hit in the  silva db to the taxonomic output.
 for key in all_nodes_dict.keys():
     if key not in node_hits_dict.keys():
-        output_tax.write(key+';'+"na;"+"na;"+"na;"+"na;"+"na;"+"na;"+'n')
+        output_tax.write(key+';'+"na;"+"na;"+"na;"+"na;"+"na;"+"na;"+'\n')
 
 # Write the header information to the new matrix file
 output_matrix.write("node"+'\t'+'\t'.join(med_matrix_dict['samples'])+'\n')
