@@ -78,6 +78,9 @@ if you see an error here its possible that you need to remove the first line (he
 
 Each of these collections can now be used as a db to search using vsearch or converted into a blast databaase etc. in the same way that you use the silva database for your 16S data.  Enjoy!  If you have another maker that you would like to explore, just let me know and I'll make it happen :) 
 
+## Update - I have found there are some questionable sequences containing Ns.  I used mu-remove-seqs-with_Ns.py to remove these sequences from the database. I'm continuing to work toward refinement and improvement of these databases. 
+
+
 # Build a Phyloseq Object using the output nodes from MED and vsearch taxonomic assignment
 
 1.Run MED in the way you like.  Something like this will do.
