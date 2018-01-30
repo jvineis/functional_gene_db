@@ -80,6 +80,30 @@ Each of these collections can now be used as a db to search using vsearch or con
 
 ## Update - I have found there are some questionable sequences containing Ns.  I used mu-remove-seqs-with_Ns.py to remove these sequences from the database. I'm continuing to work toward refinement and improvement of these databases. 
 
+## Here are some improvements to nrfA that I have made.  
+
+### Build a tree to expole the possibility of non-nrfA sequences.  
+1.Fix the amino acid sequence headers to make anvio and FastTree happy
+
+    python ~/scripts/fix_fasta_headers.py nrfA_ncbi_parks.faa nrfA_ncbi_parks.fix.faa
+
+2.Dereplicate the sequences
+
+    vsearch --derep_fulllength nrfA_ncbi_parks.fix.faa --output nrfA_ncbi_parks.fix-derep.faa
+
+3.Add a octaheme nitrite ruductase from Thioalialivibrio nitratireducens from [here](https://www.ncbi.nlm.nih.gov/protein/2OT4_B?report=fasta) to the fasta file.  This is based on recommendation by Walsh et.al.
+
+4.Run famsa to align the dereplicated sequences
+
+    famsa nrfA_ncbi_parks.fix-derep.faa nrfA_ncbi_parks.fix-derep-famsa.faa
+
+5.Run FastTree on the alignment
+
+    FastTree nrfA_ncbi_parks.fix-derep-famsa.faa > nrfA_ncbi_parks.fix-derep-famsa.tre
+
+6.We want to add some additional layers that will help when visualizing this beast with Anvio.  Lets start with the size of the fragment and the number of sequences represented in the dereplicated data.  This information can be produced from headers that look like this. ">GCA_001278275|source_start:1367327|stop:1368764;size=116;" using a script called gen-add-layers-size-len.py like below.  This will produce a "nrfA_ncbi_derep-fix.faa" with a headers that looks like this ">GCA_001278275_1367327_1368764" and a file called "additional_layers.txt".    
+
+     python gen-add-layers-size-len.py nrfA_ncbi_parks-derep.faa nrfA_ncbi_parks-derep-fix.faa
 
 # Build a Phyloseq Object using the output nodes from MED and vsearch taxonomic assignment
 
@@ -103,6 +127,10 @@ Each of these collections can now be used as a db to search using vsearch or con
 
     muscle -in NODE-REPRESENTATIVES.fa -out nirS-muscle-alignment.fa
 
+5a.I'm now using [famsa](https://github.com/refresh-bio/FAMSA)
+
+    e.g. famsa NODE-REPRESENTATIVES.fasta NODE-REPRESENTATIVE-famsa.fa
+
 6.Build the tree using FastTree http://www.microbesonline.org/fasttree/
 
     FastTree -nt nirS-muscle-alignment.fa > nirS_fasttree.tre
@@ -124,5 +152,12 @@ Each of these collections can now be used as a db to search using vsearch or con
     META = sample_data(meta_nirS)
 
     nrfA_physeq = phyloseq(OTU,TAX,META,tree_nirS)
+
+## Update - I am working toward trying to cluster amino acid sequences for the short reads using MED.  This involves the dangerous practice of translating the short reads using prodigal.. 
+
+1.Start out by using prodigal to call amino acid sequences for all short reads - this takes a while.
+
+	prodigal -i sequences-to-decompose.fa -a sequences-to-decompose.faa -n -p meta
+
 
 
