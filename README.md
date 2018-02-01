@@ -101,11 +101,68 @@ Each of these collections can now be used as a db to search using vsearch or con
 
     FastTree nrfA_ncbi_parks.fix-derep-famsa.faa > nrfA_ncbi_parks.fix-derep-famsa.tre
 
-6.We want to add some additional layers that will help when visualizing this beast with Anvio.  Lets start with the size of the fragment and the number of sequences represented in the dereplicated data.  This information can be produced from headers that look like this. ">GCA_001278275|source_start:1367327|stop:1368764;size=116;" using a script called gen-add-layers-size-len.py like below.  This will produce a "nrfA_ncbi_derep-fix.faa" with a headers that looks like this ">GCA_001278275_1367327_1368764" and a file called "additional_layers.txt".    
+6.We want to add some additional layers that will help when visualizing this beast with Anvio.  Lets start with the size of the fragment and the number of sequences represented in the dereplicated data.  This information can be produced from headers that look like this. ">GCA_001278275|source_start:1367327|stop:1368764;size=116;" using a script called gen-add-layers-size-len.py like below.  This will produce a "nrfA_ncbi_parks-derep-fix.faa" with a headers that looks like this ">GCA_001278275_1367327_1368764" and a file called "additional_layers.txt".    
 
      python gen-add-layers-size-len.py nrfA_ncbi_parks-derep.faa nrfA_ncbi_parks-derep-fix.faa
 
+7.In order to see where the nodes from our nrfA amplicon study from the thin sections map onto our tree in an unbiased way, we used blast to search our translated NODE-REPRESENTATIVES.fa.  Here are the steps to create a layer for the node hits and details of the match for visualization in anvio.  These steps will need the "additional_layers.txt" file produced in step 6.  
+
+     prodigal -i ~/Dropbox/oxygen_gradient/nrfA/nrfA-MED-OUTPUT/NODE-REPRESENTATIVES.fa -a ~/Dropbox/oxygen_gradient/nrfA/nrfA-MED-OUTPUT/NODE-REPRESENTATIVES.faa -n -p meta
+     makeblastdb -in nrfA_ncbi_parks.fix.faa -dbtype 'prot' -title nrfA_ncbi_parks-fix -out nrfA_ncbi_parks-fix
+     blastp -db nrfA_ncbi_parks-fix -out nrfA_ncbi_parks-fix.node-blast-hits.txt -outfmt 10 -query ~/Dropbox/oxygen_gradient/nrfA/nrfA-MED-OUTPUT/NODE-REPRESENTATIVES.faa
+     python add-node-hits-to-additional-layers.py -i additional_layers.txt -blast nrfA_ncbi_parks-fix.node-blast-hits.txt -per 60
+     anvi-interactive -t nrfA_ncbi_parks.fix-derep-famsa.tre -d additional_layers_w_nodes.txt -p profile.db --manual-mode
+
+8.We are getting a little greedy now and would like to add the taxonomy of the NODE-REPRESENTATIVES.faa hit to the additional_layers_w_nodes.txt.  We can use the taxonomy from the PHYLOSEQ-TAX-OBJECT.txt object created below.  Maybe we should be using the 16s ribosomal RNA genes to identify taxonomy for each of the hits.  I can extract these from the contigs database.  I'll assign taxonomy using the id of the representative sequence resulting from vsearch dereplicate.  A chore for later will be to look at the diversity in 16S of leaves in the dereplicated functional gene tree.  I'm runing scripts to extract from each of the contigs.dbs for the 16K genomes like this.
+
+     bash x_collect_rnas.shx
+
+which looks like this.
+
+    #!/bin/bash
+    module load python/3.6.3-201710101533
+    for i in `cat samples.txt`
+    do
+        anvi-get-sequences-for-hmm-hits -c "$i"_contigs.db --hmm-sources Ribosomal_RNAs -o "$i"_rRNA_output.fa
+    done 
+
+then I concatenate all of the ribosomal RNAs from the ncbi and parks db directories in my home directory on the MBL servers.
+
+     cat temp*/*rRNA_output.fa > all_ncbi_ribosomal_RNAs.fa
+     cat temp*/*rRNA_output.fa > all_parks_ribosomal_RNAs.fa
+
+now select only 16S sequences (ignoring 23S for now).  Well, I would do this, but only 797 out of the 8000 parks genomes contained 16S sequences.  Can this be right?  I need to check the Parks paper again.  Lets try some Hug tRNA genes from the 16K genomes using anvi-get-sequences-for-hmm-hits like this.
+
+    bash x_collect_ribosomal.shx
+
+which looks like this.
+      
+    #!/bin/bash
+    module load python/3.6.3-201710101533
+    for i in `cat samples.txt`;
+    do 
+       anvi-get-sequnces-for-hmm-hits -c "$i"_contigs.db --hmm-source Campbell_et_al --gene-names ../list_of_ribosomal_proteins.txt --return-best-hit --get-aa-sequences --concatenate;
+    done
+
+I concatenated all of the ribosomal proteins 
+
+    cat temp*/*ribosomal.fa > all_ncbi_ribosomal.fa
+    cat temp*/*ribosomal.fa > all_parks_ribosomal.fa
+
+To collect the ribosomal sequences associated with a particular functional gene, I used this magical script
+
+    python find-ribosomal-hits.py -phylo ncbi-parks-ribosomal.faa -fa nrfA_ncbi_parks.fix-derep.faa -out ribosomal-nrfA-sequences-RAW.fa
+
+Then I selected sequences that were greater than 1600bp. ran famsa and FastTree
+
+    python ~/scripts/mu-sequence-length-selector.py -fa ribosomal-nrfA-sequences-RAW.fa -l 5000 -s 1600 -o ribosomal-nrfA-sequences-1600min.fa
+    famsa ribosomal-nrfA-sequences-1600min.fa ribosomal-nrfA-sequences-1600min-famsa.faa
+    FastTree ribosomal-nrfA-sequences-1600-famsa.faa > ribosomal-nrfA-sequences-1600-famsa.tre
+
+
+
 # Build a Phyloseq Object using the output nodes from MED and vsearch taxonomic assignment
+
 
 1.Run MED in the way you like.  Something like this will do.
 
