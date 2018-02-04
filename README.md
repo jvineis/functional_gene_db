@@ -42,13 +42,13 @@
 8.I concatenated the ncbi and parks data into a single file for each of the functional genes. eg
 
     cat dsrB_parks.fa dsrB_ncbi.fa > dsrB_ncbi_parks.fa
-    sed 's/_contigs//g' dsrB_ncbi_parks.fa > dsrB
-    mv dsrB dsrB_ncbi_parks.fa
+    sed 's/_contigs//g' dsrB_ncbi_parks.fa | sed 's/ //g' > dsrB
 
 9.Fix the deflines that are produced by anvio using the handy ncbi_parks_name_fix.py.  eg
 
-    python ncbi_parks_name_fix.py nirS_ncbi_parks.fa nirS
-    mv nirS nirS_ncbi_parks.fa 
+    python ncbi_parks_name_fix.py dsrB dsrB_ncbi_parks.fa
+
+If you are comfortable with the results, you can remove all the temporary stuff.       
 
 10.The taxa for each of the genomes are contained in the NCBI archive tables for archeal, bacterial, and parks genomes are found in the tables called archaea-bacterial-complete-list.txt and parks-complete-list.txt. So I guess its time to create a taxonomy and defline table that looks something like this.
 
@@ -159,7 +159,39 @@ Then I selected sequences that were greater than 1600bp. ran famsa and FastTree
     famsa ribosomal-nrfA-sequences-1600min.fa ribosomal-nrfA-sequences-1600min-famsa.faa
     FastTree ribosomal-nrfA-sequences-1600-famsa.faa > ribosomal-nrfA-sequences-1600-famsa.tre
 
+##Here are some fixes that I made to dsrB.  This one was pretty phucked up due to the presence of multiple gene families in the pfam.
 
+Just in case you forgot. Here is how to run a blast of the protein sequences against the most recent protein ref contained at MBL. I run it on the cluster like thus
+
+    bash x_extract-aa-and-submit-blast.shx
+
+which looks like this
+
+    #!/bin/bash
+    module load python/3.6.3-201710101533
+    for i in `cat samples.txt`
+    do
+        anvi-get-sequences-for-hmm-hits -c "$i"_contigs.db --hmm-sources dsrB --get-aa-sequences -o "$i".dsrB.faa
+        sed 's/ /_/g' "$i".dsrB.faa > "$i".dsrB.fix.faa
+        mv "$i".dsrB.fix.faa "$i".dsrB.faa
+        python ../ncbi_parks_name_fix.py "$i".dsrB.faa "$i".dsrB.fix.faa
+        mv "$i".dsrB.fix.faa "$i".dsrB.faa
+        clusterize blastp -query "$i".dsrB.faa -db /usr/local/blastdb/refseq_protein.26 -outfmt \"6 qseqid sseqid length mismatch evalue qstart qend sstart send salltitles\" -out "$i".dsrB_blast.txt
+    done
+
+1.collect all of the hits from both the parks and ncbi dirctories and then make a single concatenated list of hits.  Then pull out just the node ids that have the "sulfite reductase" in the hit id
+
+    cat parks*/temp*/*dsrB_blast.txt > parks-dsrb-hits.txt
+    cat ncbi*/temp*/*dsrB_blast.txt > ncbi-dsrb-hits.txt
+    cat parks-dsrb-hits.txt ncbi-dsrb-hits.txt > ncbi-parks-dsrB-blast-hits.txt
+    grep "sulfite reductase" ncbi-parks-dsrb-allblast.txt | cut -f 1 | sort | uniq > ncbi-parks-dsrb-blast-truehits.txt
+    
+2.Then I use this filter to return only the sequences that are in the hit table created above.  Its crazy but sometimes anvio returns two ids that are nearly identical.  I use the script below to remove any sequnce that is redundant.  They are acutally differnt sequences but nearly identical.. I don't know exactly whats happening here but I need to talk with Meren on this one.  In 14,000 dsrB sequences, I only found one instance of this DCPD0|source_start:0|stop:231.  
+
+    python remove-redundant-ids.py dsrB_ncbi_parks.fa dsrB_ncbi_parks-nonredundant.fa
+    python filter-dsrB-using-blast.py dsrB_ncbi_parks-nonredundant.faa ncbi-parks-dsrb-blast-truehits.txt dsrB_ncbi_parks-nonredundant-blastfilter.faa
+
+3.Now run famsa and do other awesome stuff.  
 
 # Build a Phyloseq Object using the output nodes from MED and vsearch taxonomic assignment
 
