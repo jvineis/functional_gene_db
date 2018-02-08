@@ -1,5 +1,5 @@
 # Creation of a database for important functional genes
-### Steps to create a fasta file of functional genes from 6000 ncbi "Gold" genomes and 8000 genomes derived from https://www.nature.com/articles/s41564-017-0012-7. At the time of the creation of this README, I was working from here /Users/joevineis/Documents/BOWEN/functional_gene_db.
+### Steps to create a fasta file of functional genes from 6000 ncbi "Gold" genomes explained in get_genomes_and_builddb.txt and 8000 genomes derived from https://www.nature.com/articles/s41564-017-0012-7 explained below. At the time of the creation of this README, I was working from here /Users/joevineis/Documents/BOWEN/functional_gene_db.
 
 1.I downloaded the genbank file ids from the parks publication. included in the repository [41564_2017_12_MOESM3_ESM.xls](https://github.com/jvineis/functional_gene_db/blob/master/41564_2017_12_MOESM3_ESM.xls)
 
@@ -50,6 +50,7 @@
 
 If you are comfortable with the results, you can remove all the temporary stuff.       
 
+### DONT DO THIS ANYMORE
 10.The taxa for each of the genomes are contained in the NCBI archive tables for archeal, bacterial, and parks genomes are found in the tables called archaea-bacterial-complete-list.txt and parks-complete-list.txt. So I guess its time to create a taxonomy and defline table that looks something like this.
 
     Defline_from_anvio    taxonomy_from_archive_table 
@@ -82,38 +83,52 @@ Each of these collections can now be used as a db to search using vsearch or con
 
 ## Here are some improvements to nrfA that I have made.  
 
-### Build a tree to expole the possibility of non-nrfA sequences.  
-1.Fix the amino acid sequence headers to make anvio and FastTree happy
+### Build a tree based on nrfA to expole the possibility of non-nrfA sequences.  
+1.Remove sequences that are too the wrong size to be the target.  Most amino acid sequences are below 350aa.  I found this after multiple iterations of building trees and alignments.  This is very helpfu.
 
-    python ~/scripts/fix_fasta_headers.py nrfA_ncbi_parks.faa nrfA_ncbi_parks.fix.faa
+    python ../mu-sequence-length-selector.py -l 650 -s 200 -fa nrfA_ncbi_parks.faa -o nrfA_ncbi_parks-sized.faa
+
+we started with 2189 sequences in the fix.faa file and ended with 1825 in the sized file. Add the Thioalialivibrio nitratireducens from [here](https://www.ncbi.nlm.nih.gov/protein/2OT4_B?report=fasta) to the fasta file.  This is based on recommendation by Walsh et.al. !!!! NOT ADDING THE T.nitratireducens.. it is not different enough from nrfA given our approach
 
 2.Dereplicate the sequences
 
-    vsearch --derep_fulllength nrfA_ncbi_parks.fix.faa --output nrfA_ncbi_parks.fix-derep.faa
+    vsearch --derep_fulllength nrfA_ncbi_parks-sized.faa --output nrfA_ncbi_parks-sized-derep.faa --sizeout
 
-3.Add a octaheme nitrite ruductase from Thioalialivibrio nitratireducens from [here](https://www.ncbi.nlm.nih.gov/protein/2OT4_B?report=fasta) to the fasta file.  This is based on recommendation by Walsh et.al.
+1012 sequences remain after dereplicating.
+
+3.We want to add some additional layers that will help when visualizing this beast with Anvio.  Lets start with the size of the fragment and the number of sequences represented in the dereplicated data.  This information can be produced from headers that look like this. ">GCA_001278275|source_start:1367327|stop:1368764;size=116;" using a script called gen-add-layers-size-len.py like below.  This will produce a "nrfA_ncbi_parks-derep-fix.faa" with a headers that looks like this ">GCA_001278275_1367327_1368764" and a file called "additional_layers.txt".
+
+     python gen-add-layers-size-len.py nrfA_ncbi_parks-sized-derep.faa nrfA_ncbi_parks-sized-derep-add.faa
 
 4.Run famsa to align the dereplicated sequences
 
-    famsa nrfA_ncbi_parks.fix-derep.faa nrfA_ncbi_parks.fix-derep-famsa.faa
+    famsa nrfA_ncbi_parks-sized-derep-add.faa nrfA_ncbi_parks-sized-derep-add-famsa.faa
+
+4a.Run trimal on the alignment.
+
+    trimal -in nrfA_ncbi_parks-sized-derep-add-famsa.faa -out nrfA_ncbi_parks-sized-derep-add-famsa-trimal.faa -gappyout
 
 5.Run FastTree on the alignment
 
-    FastTree nrfA_ncbi_parks.fix-derep-famsa.faa > nrfA_ncbi_parks.fix-derep-famsa.tre
+    FastTree nrfA_ncbi_parks-sized-derep-add-famsa-trimal.faa > nrfA_ncbi_parks-sized-derep-add-famsa-trimal.tre
 
-6.We want to add some additional layers that will help when visualizing this beast with Anvio.  Lets start with the size of the fragment and the number of sequences represented in the dereplicated data.  This information can be produced from headers that look like this. ">GCA_001278275|source_start:1367327|stop:1368764;size=116;" using a script called gen-add-layers-size-len.py like below.  This will produce a "nrfA_ncbi_parks-derep-fix.faa" with a headers that looks like this ">GCA_001278275_1367327_1368764" and a file called "additional_layers.txt".    
+6a.After inspecting the tree its obvious that there are some non-nrfA seqs that cluster with our Thioalkalivibrio.  I selected all of the branches in the tree and then clicked on the "split" box to see the genome id.  I copied and pasted this into a file called non_nrfA_ids.txt.  The used mu-selectseq_from_fasta.py like this.. ### After furthrther inspection.. I'm ok with the sequences clustered around the Thioalkalivibrio because they are not divergent enough given the amount of diversity that we see with nrfA.. However, we can play with this if we like and return to step 1 with the reduced sequence list.
 
-     python gen-add-layers-size-len.py nrfA_ncbi_parks-derep.faa nrfA_ncbi_parks-derep-fix.faa
+    python ~/scripts/mu-selectseq_from_fasta.py --x nrfA_ncbi_parks.fix-sized-derep.faa --out nrfA_ncbi_parks.fix-sized-derep-clean.faa --infile non_nrfA_ids.txt --list TRUE
+
+then I reran all of the famsa, trimal, and FastTree to create my clean tree.  Hope this looks nice!
 
 7.In order to see where the nodes from our nrfA amplicon study from the thin sections map onto our tree in an unbiased way, we used blast to search our translated NODE-REPRESENTATIVES.fa.  Here are the steps to create a layer for the node hits and details of the match for visualization in anvio.  These steps will need the "additional_layers.txt" file produced in step 6.  
 
      prodigal -i ~/Dropbox/oxygen_gradient/nrfA/nrfA-MED-OUTPUT/NODE-REPRESENTATIVES.fa -a ~/Dropbox/oxygen_gradient/nrfA/nrfA-MED-OUTPUT/NODE-REPRESENTATIVES.faa -n -p meta
-     makeblastdb -in nrfA_ncbi_parks.fix.faa -dbtype 'prot' -title nrfA_ncbi_parks-fix -out nrfA_ncbi_parks-fix
-     blastp -db nrfA_ncbi_parks-fix -out nrfA_ncbi_parks-fix.node-blast-hits.txt -outfmt 10 -query ~/Dropbox/oxygen_gradient/nrfA/nrfA-MED-OUTPUT/NODE-REPRESENTATIVES.faa
-     python add-node-hits-to-additional-layers.py -i additional_layers.txt -blast nrfA_ncbi_parks-fix.node-blast-hits.txt -per 60
+     makeblastdb -in nrfA_ncbi_parks-sized-derep-add.faa -dbtype 'prot' -title nrfA_ncbi_parks-sized-derep-add -out nrfA_ncbi_parks-sized-derep-add
+     blastp -db nrfA_ncbi_parks-sized-derep-add -out nrfA_ncbi_parks-node-blast-hits.txt -outfmt 10 -query ~/Dropbox/oxygen_gradient/nrfA/nrfA-MED-OUTPUT/NODE-REPRESENTATIVES.faa
+     python add-node-hits-to-additional-layers.py -i additional_layers.txt -blast nrfA_ncbi_parks-node-blast-hits.txt -per 60
      anvi-interactive -t nrfA_ncbi_parks.fix-derep-famsa.tre -d additional_layers_w_nodes.txt -p profile.db --manual-mode
 
-8.We are getting a little greedy now and would like to add the taxonomy of the NODE-REPRESENTATIVES.faa hit to the additional_layers_w_nodes.txt.  We can use the taxonomy from the PHYLOSEQ-TAX-OBJECT.txt object created below.  Maybe we should be using the 16s ribosomal RNA genes to identify taxonomy for each of the hits.  I can extract these from the contigs database.  I'll assign taxonomy using the id of the representative sequence resulting from vsearch dereplicate.  A chore for later will be to look at the diversity in 16S of leaves in the dereplicated functional gene tree.  I'm runing scripts to extract from each of the contigs.dbs for the 16K genomes like this.
+8.We are getting a little greedy now and would like to add the taxonomy to the tree.  Here is how I'm now using Entrez in biopython to collect the taxonomy information from all records in the 16,000 genomes, not just nrfA
+
+9.If I ever wanted to collect ribosomal RNA genes from the 16K genomes, I could use the script below.  But there is not enough congurencey among genomes to do anything useful with this information so this step 9 is a dead end for now.
 
      bash x_collect_rnas.shx
 
@@ -131,7 +146,9 @@ then I concatenate all of the ribosomal RNAs from the ncbi and parks db director
      cat temp*/*rRNA_output.fa > all_ncbi_ribosomal_RNAs.fa
      cat temp*/*rRNA_output.fa > all_parks_ribosomal_RNAs.fa
 
-now select only 16S sequences (ignoring 23S for now).  Well, I would do this, but only 797 out of the 8000 parks genomes contained 16S sequences.  Can this be right?  I need to check the Parks paper again.  Lets try some Hug tRNA genes from the 16K genomes using anvi-get-sequences-for-hmm-hits like this.
+now select only 16S sequences (ignoring 23S for now).  Well, I would do this, but only 797 out of the 8000 parks genomes contained 16S sequences.  Can this be right?  I need to check the Parks paper again.  
+
+10.Lets try some Hug tRNA genes from the 16K genomes using anvi-get-sequences-for-hmm-hits like this.
 
     bash x_collect_ribosomal.shx
 
@@ -157,6 +174,7 @@ Then I selected sequences that were greater than 1600bp. ran famsa and FastTree
 
     python ~/scripts/mu-sequence-length-selector.py -fa ribosomal-nrfA-sequences-RAW.fa -l 5000 -s 1600 -o ribosomal-nrfA-sequences-1600min.fa
     famsa ribosomal-nrfA-sequences-1600min.fa ribosomal-nrfA-sequences-1600min-famsa.faa
+    trimal -in ribosomal-nrfA-sequences-1600min-famsa.faa -out ribosomal-nrfA-sequences-1600min-famsa-trimal.faa -gappyout
     FastTree ribosomal-nrfA-sequences-1600-famsa.faa > ribosomal-nrfA-sequences-1600-famsa.tre
 
 ##Here are some fixes that I made to dsrB.  This one was pretty phucked up due to the presence of multiple gene families in the pfam.
@@ -191,7 +209,9 @@ which looks like this
     python remove-redundant-ids.py dsrB_ncbi_parks.fa dsrB_ncbi_parks-nonredundant.fa
     python filter-dsrB-using-blast.py dsrB_ncbi_parks-nonredundant.faa ncbi-parks-dsrb-blast-truehits.txt dsrB_ncbi_parks-nonredundant-blastfilter.faa
 
-3.Now run famsa and do other awesome stuff.  
+3.Now run famsa and do other awesome stuff.  But remember that famsa requires you to remove some of the characters that you like in you fasta file.  This works most of the time.
+
+    sed 's/\|/_/g' dsrB_ncbi_parks-nonredundant-blastfilter.faa | sed 's/:/_/g' > dsrB_ncbi_parks-nonredundant-blastfilter-sed.faa
 
 # Build a Phyloseq Object using the output nodes from MED and vsearch taxonomic assignment
 
