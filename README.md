@@ -1,5 +1,5 @@
 # Creation of a database for important functional genes
-### Steps to create a fasta file of functional genes from 6000 ncbi "Gold" genomes explained in get_genomes_and_builddb.txt and 8000 genomes derived from https://www.nature.com/articles/s41564-017-0012-7 explained below. At the time of the creation of this README, I was working from here /Users/joevineis/Documents/BOWEN/functional_gene_db.
+### Steps to create a fasta file of functional genes from 8344 ncbi "Complete" genomes explained in get_genomes_and_builddb.txt and 7904 genomes derived from https://www.nature.com/articles/s41564-017-0012-7 explained below. At the time of the creation of this README, I was working from here /Users/joevineis/Documents/BOWEN/functional_gene_db.
 
 1.I downloaded the genbank file ids from the parks publication. included in the repository [41564_2017_12_MOESM3_ESM.xls](https://github.com/jvineis/functional_gene_db/blob/master/41564_2017_12_MOESM3_ESM.xls)
 
@@ -44,51 +44,19 @@
     cat dsrB_parks.fa dsrB_ncbi.fa > dsrB_ncbi_parks.fa
     sed 's/_contigs//g' dsrB_ncbi_parks.fa | sed 's/ //g' > dsrB
 
-9.Fix the deflines that are produced by anvio using the handy ncbi_parks_name_fix.py.  eg
+9.You can do the sample for anmion acid sequences by altering the find_functional_genes.shx script to collect amino acid sequeneces instead.  I have a bunch of bash scripts that are designed to collect specific items from the database.  some of which are on this main page.
 
-    python ncbi_parks_name_fix.py dsrB dsrB_ncbi_parks.fa
+### Create a Taxonomy string to link with each of your sequences: Note the script below creates a single file with genome ids for the reference database and taxonomic string.  I had to run this script twice to recover the parks and ncbi data becuse the connection to NCBI is unstable.  I merged each of the taxonomy files and called it "ncbi-parks-LINEAGE-STRINGS.txt".  This is the file that you will use when linking taxonomy to your amplicon data from the sequence hit in your functional gene database
 
-If you are comfortable with the results, you can remove all the temporary stuff.       
+    python extract-taxonomy-strings.py -ncbi archaea-bacterial-complete-list.txt -parks parks-complete-list.txt -out parks-nrfA.tax
 
-### DONT DO THIS ANYMORE
-10.The taxa for each of the genomes are contained in the NCBI archive tables for archeal, bacterial, and parks genomes are found in the tables called archaea-bacterial-complete-list.txt and parks-complete-list.txt. So I guess its time to create a taxonomy and defline table that looks something like this.
+## nrfA tree building, phylogeny, and linking ASVs to the full tree.  These steps help us to identify where our amplicons fall in our collection of reference genes and inspect the full diversity of reference sequences.
 
-    Defline_from_anvio    taxonomy_from_archive_table 
-    GCA_000005825|source_start:73135|stop:74284    Methanococcus voltae
+1.Remove sequences that are too the wrong size to be the target.  Most amino acid sequences are below 350aa.  I found this after multiple iterations of building trees and alignments.  This is very helpful.
 
-   begin by making a list of the deflines 
-    
-    grep ">" dsrB_ncbi_parks.fa | sed 's/>//g' > dsrB_deflines.txt
+    python ../mu-sequence-length-selector.py -l 3000 -s 300 -fa nrfA_ncbi_parks.faa -o nrfA_ncbi_parks-sized.faa
 
-   add the taxonomy to the defline using the add_taxa_to_defline.py.  I created the ncbi-parks-genome-2-taxa-list.txt simply by concatenating the lists of each of the genomes.  There are unequal numbers of columns in this dataset.  The ncbi "gold" genomes information contains more values than the parks genome id table.  
-    
-    add_taxa_to_defline.py nirS/nirS_deflines.txt ncbi-parks-genome-2-taxa-list.txt nirS_ids.tx
-
-11.I ran taxize on the genus level taxonomy of the ncbi_parks_tax_genera.txt, where "d" is the comma separated list of the genus names.
-     
-    d =  c("Bacteroides","Colostidium","Alphaproteobacteria".....)
-    work = tax_name(d, get = c("phylum","class","order","family","genus"), db = "ncbi")
-    write.table(work, "~/scripts/databas/functional_fa_dbs/raw_taxit.txt")
-
-
-12.I added the taxonomic string found in raw_taxit.txt produced by the R code above to the appropriate defline using mu-convert-ncbi-parks-ids-to-taxastring.py. Done like this for each functional gene.    
-
-    python ~/scripts/mu-convert-ncbi-parks-ids-to-taxastring.py nirS_ids.txt raw_taxit.txt nirS.tax
-
-if you see an error here its possible that you need to remove the first line (header information) of your raw_taxit.txt file
-
-Each of these collections can now be used as a db to search using vsearch or converted into a blast databaase etc. in the same way that you use the silva database for your 16S data.  Enjoy!  If you have another maker that you would like to explore, just let me know and I'll make it happen :) 
-
-## Update - I have found there are some questionable sequences containing Ns.  I used mu-remove-seqs-with_Ns.py to remove these sequences from the database. I'm continuing to work toward refinement and improvement of these databases. 
-
-## Here are some improvements to nrfA that I have made.  
-
-### Build a tree based on nrfA to expole the possibility of non-nrfA sequences.  
-1.Remove sequences that are too the wrong size to be the target.  Most amino acid sequences are below 350aa.  I found this after multiple iterations of building trees and alignments.  This is very helpfu.
-
-    python ../mu-sequence-length-selector.py -l 650 -s 200 -fa nrfA_ncbi_parks.faa -o nrfA_ncbi_parks-sized.faa
-
-we started with 2189 sequences in the fix.faa file and ended with 1825 in the sized file. Add the Thioalialivibrio nitratireducens from [here](https://www.ncbi.nlm.nih.gov/protein/2OT4_B?report=fasta) to the fasta file.  This is based on recommendation by Walsh et.al. !!!! NOT ADDING THE T.nitratireducens.. it is not different enough from nrfA given our approach
+we started with 2189 sequences in the fix.faa file and ended with 2095 in the sized file. Add the Thioalialivibrio nitratireducens from [here](https://www.ncbi.nlm.nih.gov/protein/2OT4_B?report=fasta) to the fasta file. 
 
 2.Dereplicate the sequences
 
@@ -108,47 +76,25 @@ we started with 2189 sequences in the fix.faa file and ended with 1825 in the si
 
     trimal -in nrfA_ncbi_parks-sized-derep-add-famsa.faa -out nrfA_ncbi_parks-sized-derep-add-famsa-trimal.faa -gappyout
 
-5.Run FastTree on the alignment
+5.Run FastTree on the alignment.  This step produces our tree for visualization
 
     FastTree nrfA_ncbi_parks-sized-derep-add-famsa-trimal.faa > nrfA_ncbi_parks-sized-derep-add-famsa-trimal.tre
 
-6a.After inspecting the tree its obvious that there are some non-nrfA seqs that cluster with our Thioalkalivibrio.  I selected all of the branches in the tree and then clicked on the "split" box to see the genome id.  I copied and pasted this into a file called non_nrfA_ids.txt.  The used mu-selectseq_from_fasta.py like this.. ### After furthrther inspection.. I'm ok with the sequences clustered around the Thioalkalivibrio because they are not divergent enough given the amount of diversity that we see with nrfA.. However, we can play with this if we like and return to step 1 with the reduced sequence list.
+6.In order to see where the nodes from our nrfA amplicon study from the thin sections map onto our tree in an unbiased way, we used blast to search our translated NODE-REPRESENTATIVES.fa.  Here are the steps to create a layer for the node hits and details of the match for visualization in anvio.  Beyond these steps will need the "additional_layers.txt" file produced in step 3 
 
-    python ~/scripts/mu-selectseq_from_fasta.py --x nrfA_ncbi_parks.fix-sized-derep.faa --out nrfA_ncbi_parks.fix-sized-derep-clean.faa --infile non_nrfA_ids.txt --list TRUE
-
-then I reran all of the famsa, trimal, and FastTree to create my clean tree.  Hope this looks nice!
-
-7.In order to see where the nodes from our nrfA amplicon study from the thin sections map onto our tree in an unbiased way, we used blast to search our translated NODE-REPRESENTATIVES.fa.  Here are the steps to create a layer for the node hits and details of the match for visualization in anvio.  These steps will need the "additional_layers.txt" file produced in step 6.  
-
-     prodigal -i ~/Dropbox/oxygen_gradient/nrfA/nrfA-MED-OUTPUT/NODE-REPRESENTATIVES.fa -a ~/Dropbox/oxygen_gradient/nrfA/nrfA-MED-OUTPUT/NODE-REPRESENTATIVES.faa -n -p meta
+     prodigal -i ~/Dropbox/oxygen_gradient/nrfA/swarm-d1-fastidious/swarm-d1-fastidious-node-representatives.fa -a ~/Dropbox/oxygen_gradient/nrfA/swarm-d1-fastidious/swarm-d1-fastidious-node-representatives.faa -n -p meta
      makeblastdb -in nrfA_ncbi_parks-sized-derep-add.faa -dbtype 'prot' -title nrfA_ncbi_parks-sized-derep-add -out nrfA_ncbi_parks-sized-derep-add
      blastp -db nrfA_ncbi_parks-sized-derep-add -out nrfA_ncbi_parks-node-blast-hits.txt -outfmt 10 -query ~/Dropbox/oxygen_gradient/nrfA/nrfA-MED-OUTPUT/NODE-REPRESENTATIVES.faa
-     python add-node-hits-to-additional-layers.py -i additional_layers.txt -blast nrfA_ncbi_parks-node-blast-hits.txt -per 60
-     anvi-interactive -t nrfA_ncbi_parks.fix-derep-famsa.tre -d additional_layers_w_nodes.txt -p profile.db --manual-mode
 
-8.We are getting a little greedy now and would like to add the taxonomy to the tree.  Here is how I'm now using Entrez in biopython to collect the taxonomy information from all records in the 16,000 genomes, not just nrfA
 
-9.If I ever wanted to collect ribosomal RNA genes from the 16K genomes, I could use the script below.  But there is not enough congurencey among genomes to do anything useful with this information so this step 9 is a dead end for now.
+9.Now we can run the step below which will create a text file called additional_layers_w_nodes.txt which can then be visualized with anvio
 
-     bash x_collect_rnas.shx
+    python add-node-hits-to-additional-layers.py -i additional_layers.txt -blast nrfA_ncbi_parks-node-blast-hits.txt -per 60 -tax ncbi-parks-LINEAGE-STRINGS.txt
+    anvi-interactive -t nrfA_ncbi_parks-sized-derep-add-famsa-trimal.tre -p profile.db -d additional_layers_w_nodes.txt --manual-mode
 
-which looks like this.
+## This tree may be not as phylogenetically accurate as the tRNA genes used in the Hub paper and elsewhere to infer phylogeny.  Lets grab those genes, create the tree, map on our ASVs and taxonomy.  
 
-    #!/bin/bash
-    module load python/3.6.3-201710101533
-    for i in `cat samples.txt`
-    do
-        anvi-get-sequences-for-hmm-hits -c "$i"_contigs.db --hmm-sources Ribosomal_RNAs -o "$i"_rRNA_output.fa
-    done 
-
-then I concatenate all of the ribosomal RNAs from the ncbi and parks db directories in my home directory on the MBL servers.
-
-     cat temp*/*rRNA_output.fa > all_ncbi_ribosomal_RNAs.fa
-     cat temp*/*rRNA_output.fa > all_parks_ribosomal_RNAs.fa
-
-now select only 16S sequences (ignoring 23S for now).  Well, I would do this, but only 797 out of the 8000 parks genomes contained 16S sequences.  Can this be right?  I need to check the Parks paper again.  
-
-10.Lets try some Hug tRNA genes from the 16K genomes using anvi-get-sequences-for-hmm-hits like this.
+1. Lets try some Hug tRNA genes from the 16K genomes using anvi-get-sequences-for-hmm-hits like this. 
 
     bash x_collect_ribosomal.shx
 
@@ -161,6 +107,25 @@ which looks like this.
        anvi-get-sequnces-for-hmm-hits -c "$i"_contigs.db --hmm-source Campbell_et_al --gene-names ../list_of_ribosomal_proteins.txt --return-best-hit --get-aa-sequences --concatenate;
     done
 
+here is the list of ribosomal proteins used in the script above
+
+    Ribosomal_L2
+    Ribosomal_L3
+    Ribosomal_L4
+    Ribosomal_L5
+    Ribosomal_L6
+    Ribosomal_L10
+    Ribosomal_L11
+    Ribosomal_L12
+    Ribosomal_L13
+    Ribosomal_L14
+    Ribosomal_L16
+    Ribosomal_L22
+    Ribosomal_S8
+    Ribosomal_S10
+    Ribosomal_S17
+    Ribosomal_S19
+
 I concatenated all of the ribosomal proteins 
 
     cat temp*/*ribosomal.fa > all_ncbi_ribosomal.fa
@@ -170,12 +135,17 @@ To collect the ribosomal sequences associated with a particular functional gene,
 
     python find-ribosomal-hits.py -phylo ncbi-parks-ribosomal.faa -fa nrfA_ncbi_parks.fix-derep.faa -out ribosomal-nrfA-sequences-RAW.fa
 
-Then I selected sequences that were greater than 1600bp. ran famsa and FastTree
+Then I selected sequences that were greater than 1600bp.
 
     python ~/scripts/mu-sequence-length-selector.py -fa ribosomal-nrfA-sequences-RAW.fa -l 5000 -s 1600 -o ribosomal-nrfA-sequences-1600min.fa
-    famsa ribosomal-nrfA-sequences-1600min.fa ribosomal-nrfA-sequences-1600min-famsa.faa
-    trimal -in ribosomal-nrfA-sequences-1600min-famsa.faa -out ribosomal-nrfA-sequences-1600min-famsa-trimal.faa -gappyout
-    FastTree ribosomal-nrfA-sequences-1600-famsa.faa > ribosomal-nrfA-sequences-1600-famsa.tre
+
+You can now continue on with this output at step 3 of "nrfA Tree building" to add additional layers etc..
+
+# I'm currently using SWARM to cluster ASVs.  Here is how I use the nrfA database to assign taxonomy to each node and set up for Phyloseq visualization etc.  
+
+1.Run SWARM on the prepped amplicon data.  Merging reads etc are found elsewhere.
+
+     
 
 ##Here are some fixes that I made to dsrB.  This one was pretty phucked up due to the presence of multiple gene families in the pfam.
 
@@ -213,8 +183,7 @@ which looks like this
 
     sed 's/\|/_/g' dsrB_ncbi_parks-nonredundant-blastfilter.faa | sed 's/:/_/g' > dsrB_ncbi_parks-nonredundant-blastfilter-sed.faa
 
-# Build a Phyloseq Object using the output nodes from MED and vsearch taxonomic assignment
-
+# Build a Phyloseq Object using the output nodes from MED or SWARM etc and vsearch taxonomic assignment - This is amplicon stuff that is somewhat misplaced here, but I'm leaving it for now.  
 
 1.Run MED in the way you like.  Something like this will do.
 
@@ -230,7 +199,7 @@ which looks like this
 	 
 4.The following script will produce PHYLOSEQ-TAX-OBJECT.txt and PHYLOSEQ-MATRIX-OBJECT.txt that will be used for input into R as the otu_table and tax_table.
 
-     mu-silva_ids_to_phyloseq.py -tax_ref nirS.tax -hits NODE-HITS.txt -med MATRIX-COUNT.txt -fa NODE-REPRESENTATIVES.fa
+    mu-swarm_ids_to_phyloseq.py -tax_ref ncbi-parks-LINEAGE-STRINGS.txt -hits NODE-HITS.txt -med MATRIX-COUNT.txt -fa NODE-REPRESENTATIVES.fa
 
 5.Now you need a tree file to do some amazing expoloration with phyloseq.  I use MUSCLE v3.8.31 to align my NODE-REPRESENTATIVES.fa like this.
 
@@ -270,3 +239,6 @@ which looks like this
 
 
 
+Each of these collections can now be used as a db to search using vsearch or converted into a blast databaase etc. in the same way that you us\
+e the silva database for your 16S data.  Enjoy!  If you have another maker that you would like to explore, just let me know and I'll make it h\
+appen :)
