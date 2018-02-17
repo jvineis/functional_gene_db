@@ -46,6 +46,38 @@
 
 9.You can do the sample for anmion acid sequences by altering the find_functional_genes.shx script to collect amino acid sequeneces instead.  I have a bunch of bash scripts that are designed to collect specific items from the database.  some of which are on this main page.
 
+##Here are some fixes that I made to dsrB.  This one was pretty phucked up due to the presence of multiple gene families in the pfam.
+
+Just in case you forgot. Here is how to run a blast of the protein sequences against the most recent protein ref contained at MBL. I run it on the cluster like thus
+
+    bash x_extract-aa-and-submit-blast.shx
+
+which looks like this
+
+    #!/bin/bash
+    module load python/3.6.3-201710101533
+    for i in `cat samples.txt`
+    do
+        anvi-get-sequences-for-hmm-hits -c "$i"_contigs.db --hmm-sources dsrB --get-aa-sequences -o "$i".dsrB.faa
+        sed 's/ /_/g' "$i".dsrB.faa > "$i".dsrB.fix.faa
+        mv "$i".dsrB.fix.faa "$i".dsrB.faa
+        python ../ncbi_parks_name_fix.py "$i".dsrB.faa "$i".dsrB.fix.faa
+        mv "$i".dsrB.fix.faa "$i".dsrB.faa
+        clusterize blastp -query "$i".dsrB.faa -db /usr/local/blastdb/refseq_protein.26 -outfmt \"6 qseqid sseqid length mismatch evalue qstart qend sstart send salltitles\" -out "$i".dsrB_blast.txt
+    done
+
+1.collect all of the hits from both the parks and ncbi dirctories and then make a single concatenated list of hits.  Then pull out just the node ids that have the "sulfite reductase" in the hit id
+
+    cat parks*/temp*/*dsrB_blast.txt > parks-dsrb-hits.txt
+    cat ncbi*/temp*/*dsrB_blast.txt > ncbi-dsrb-hits.txt
+    cat parks-dsrb-hits.txt ncbi-dsrb-hits.txt > ncbi-parks-dsrB-blast-hits.txt
+    grep "sulfite reductase" ncbi-parks-dsrb-allblast.txt | cut -f 1 | sort | uniq > ncbi-parks-dsrb-blast-truehits.txt
+
+2.Then I use this filter to return only the sequences that are in the hit table created above.  Its crazy but sometimes anvio returns two ids that are nearly identical.  I use the script below to remove any sequnce that is redundant.  They are acutally differnt sequences but nearly identical.. I don't know exactly whats happening here but I need to talk with Meren on this one.  In 14,000 dsrB sequences, I only found one instance of this DCPD0|source_start:0|stop:231.
+
+    python remove-redundant-ids.py dsrB_ncbi_parks.fa dsrB_ncbi_parks-nonredundant.fa
+    python filter-dsrB-using-blast.py dsrB_ncbi_parks-nonredundant.faa ncbi-parks-dsrb-blast-truehits.txt dsrB_ncbi_parks-nonredundant-blastfilter.faa
+
 ### Create a Taxonomy string to link with each of your sequences: Note the script below creates a single file with genome ids for the reference database and taxonomic string.  I had to run this script twice to recover the parks and ncbi data becuse the connection to NCBI is unstable.  I merged each of the taxonomy files and called it "ncbi-parks-LINEAGE-STRINGS.txt".  This is the file that you will use when linking taxonomy to your amplicon data from the sequence hit in your functional gene database
 
     python extract-taxonomy-strings.py -ncbi archaea-bacterial-complete-list.txt -parks parks-complete-list.txt -out parks-nrfA.tax
@@ -139,50 +171,14 @@ Then I selected sequences that were greater than 1600bp.
 
     python ~/scripts/mu-sequence-length-selector.py -fa ribosomal-nrfA-sequences-RAW.fa -l 5000 -s 1600 -o ribosomal-nrfA-sequences-1600min.fa
 
+Then fix the headers a bit
+
+    sed 's/\|source_start:/_/g' ribosomal-dsrB-sequences-1600min.faa | sed 's/\|stop:/_/g' > test
+    mv test ribosomal-dsrB-sequences-1600min.faa
+
 You can now continue on with this output at step 3 of "nrfA Tree building" to add additional layers etc..
 
 # I'm currently using SWARM to cluster ASVs.  Here is how I use the nrfA database to assign taxonomy to each node and set up for Phyloseq visualization etc.  
-
-1.Run SWARM on the prepped amplicon data.  Merging reads etc are found elsewhere.
-
-     
-
-##Here are some fixes that I made to dsrB.  This one was pretty phucked up due to the presence of multiple gene families in the pfam.
-
-Just in case you forgot. Here is how to run a blast of the protein sequences against the most recent protein ref contained at MBL. I run it on the cluster like thus
-
-    bash x_extract-aa-and-submit-blast.shx
-
-which looks like this
-
-    #!/bin/bash
-    module load python/3.6.3-201710101533
-    for i in `cat samples.txt`
-    do
-        anvi-get-sequences-for-hmm-hits -c "$i"_contigs.db --hmm-sources dsrB --get-aa-sequences -o "$i".dsrB.faa
-        sed 's/ /_/g' "$i".dsrB.faa > "$i".dsrB.fix.faa
-        mv "$i".dsrB.fix.faa "$i".dsrB.faa
-        python ../ncbi_parks_name_fix.py "$i".dsrB.faa "$i".dsrB.fix.faa
-        mv "$i".dsrB.fix.faa "$i".dsrB.faa
-        clusterize blastp -query "$i".dsrB.faa -db /usr/local/blastdb/refseq_protein.26 -outfmt \"6 qseqid sseqid length mismatch evalue qstart qend sstart send salltitles\" -out "$i".dsrB_blast.txt
-    done
-
-1.collect all of the hits from both the parks and ncbi dirctories and then make a single concatenated list of hits.  Then pull out just the node ids that have the "sulfite reductase" in the hit id
-
-    cat parks*/temp*/*dsrB_blast.txt > parks-dsrb-hits.txt
-    cat ncbi*/temp*/*dsrB_blast.txt > ncbi-dsrb-hits.txt
-    cat parks-dsrb-hits.txt ncbi-dsrb-hits.txt > ncbi-parks-dsrB-blast-hits.txt
-    grep "sulfite reductase" ncbi-parks-dsrb-allblast.txt | cut -f 1 | sort | uniq > ncbi-parks-dsrb-blast-truehits.txt
-    
-2.Then I use this filter to return only the sequences that are in the hit table created above.  Its crazy but sometimes anvio returns two ids that are nearly identical.  I use the script below to remove any sequnce that is redundant.  They are acutally differnt sequences but nearly identical.. I don't know exactly whats happening here but I need to talk with Meren on this one.  In 14,000 dsrB sequences, I only found one instance of this DCPD0|source_start:0|stop:231.  
-
-    python remove-redundant-ids.py dsrB_ncbi_parks.fa dsrB_ncbi_parks-nonredundant.fa
-    python filter-dsrB-using-blast.py dsrB_ncbi_parks-nonredundant.faa ncbi-parks-dsrb-blast-truehits.txt dsrB_ncbi_parks-nonredundant-blastfilter.faa
-
-3.Now run famsa and do other awesome stuff.  But remember that famsa requires you to remove some of the characters that you like in you fasta file.  This works most of the time.
-
-    sed 's/\|/_/g' dsrB_ncbi_parks-nonredundant-blastfilter.faa | sed 's/:/_/g' > dsrB_ncbi_parks-nonredundant-blastfilter-sed.faa
-
 # Build a Phyloseq Object using the output nodes from MED or SWARM etc and vsearch taxonomic assignment - This is amplicon stuff that is somewhat misplaced here, but I'm leaving it for now.  
 
 1.Run MED in the way you like.  Something like this will do.
