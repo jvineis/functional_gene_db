@@ -142,7 +142,7 @@ remove amino acid sequences with "X" They contained "Ns" in their nucleotide sca
 which looks like this.
       
     #!/bin/bash
-    module load python/3.6.3-201710101533
+
     for i in `cat samples.txt`;
     do 
        anvi-get-sequnces-for-hmm-hits -c "$i"_contigs.db --hmm-source Campbell_et_al --gene-names ../list_of_ribosomal_proteins.txt --return-best-hit --get-aa-sequences --concatenate;
