@@ -1,0 +1,2 @@
+gene	accession	hmmsource
+nrfA	PF02335	pfam

@@ -1,0 +1,2 @@
+gene	accession	hmmsource
+nirS	fungene	http://fungene.cme.msu.edu/hmm_detail.spr?hmm_id=21
