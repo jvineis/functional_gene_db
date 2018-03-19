@@ -133,7 +133,7 @@ remove amino acid sequences with "X" They contained "Ns" in their nucleotide sca
     python add-node-hits-to-additional-layers.py -i additional_layers.txt -blast nrfA_ncbi_parks-node-blast-hits.txt -per 60 -tax ncbi-parks-LINEAGE-STRINGS.txt
     anvi-interactive -t nrfA_ncbi_parks-sized-derep-add-famsa-trimal.tre -p profile.db -d additional_layers_w_nodes.txt --manual-mode
 
-## This tree may be not as phylogenetically accurate as the tRNA genes used in the Hub paper and elsewhere to infer phylogeny.  Lets grab those genes, create the tree, map on our ASVs and taxonomy.  
+## This tree may be not as phylogenetically accurate as the tRNA genes used in the Hug et.al[https://www.nature.com/articles/nmicrobiol201648] to infer phylogeny.  Lets grab those genes, create the tree, map on our ASVs and taxonomy.  
 
 1. Lets try some Hug tRNA genes from the 16K genomes using anvi-get-sequences-for-hmm-hits like this. 
 
