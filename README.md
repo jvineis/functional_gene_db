@@ -1,8 +1,10 @@
 # Creation of a database for important functional genes using hmm models.  Currently, I have run the following hmm models - which required a lot of work and testing with models from pfam and other sources.  I found the following models to work best.  The anvio hmm directories are included in this repository.
 
 dsrB - ftp://ftp.jcvi.org/pub/data/TIGRFAMs/
-nirS - fungene  
-nrfA - pfam 
+
+nirS - http://fungene.cme.msu.edu/hmm_detail.spr?hmm_id=21
+
+nrfA - http://pfam.xfam.org/family/Cytochrom_C552
 
 
 ### Steps to create a fasta file of functional genes from 8344 ncbi "Complete" genomes explained in get_genomes_and_builddb.txt and 7904 genomes derived from https://www.nature.com/articles/s41564-017-0012-7 explained below. note-to-selfAt the time of the creation of this README I housed the scripts etc for this git here /Users/joevineis/Documents/BOWEN/functional_gene_db and running all searches and contigsdb creation from here /workspace/jvineis/functional-gene-project
