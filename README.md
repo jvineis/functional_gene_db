@@ -63,24 +63,25 @@ nrfA - http://pfam.xfam.org/family/Cytochrom_C552
 ## functional gene tree building, phylogeny, and linking ASVs to the full tree.  These steps help us to identify where our amplicons fall in our collection of reference genes and inspect the full diversity of reference sequences.  Its best to run them in a single bash script that looks like this
 
     #!/bin/bash
-
     # all the standard stuff
-    python ../mu-sequence-length-selector.py -l 3000 -s 300 -fa nrfA_ncbi_parks.faa -o nrfA_ncbi_parks-sized.faa
-    python ../mu-remove-seqs-with_Ns.py -f nrfA_ncbi_parks-sized.faa -o nrfA_ncbi_parks-sized-Ns.faa
-    python ../mu-dereplicate-seqs.py -fa nrfA_ncbi_parks-sized-Ns.faa -o nrfA_ncbi_parks-sized-Ns-derep.faa
-    python ../gen-add-layers-size-len.py nrfA_ncbi_parks-sized-Ns-derep.faa nrfA_ncbi_parks-sized-Ns-derep-add.faa
-    famsa nrfA_ncbi_parks-sized-Ns-derep-add.faa nrfA_ncbi_parks-sized-Ns-derep-add-famsa.faa
-    trimal nrfA_ncbi_parks-sized-Ns-derep-add-famsa.faa nrfA_ncbi_parks-sized-Ns-derep-add-famsa-trimal.faa
-    FastTree nrfA_ncbi_parks-sized-Ns-derep-add-famsa-trimal.faa > nrfA_ncbi_parks-sized-Ns-derep-add-famsa-trimal.tre
+    python ~/scripts/ncbi_parks_name_fix.py amoA_A-master.fa amoA_A-master_names.faa
+    python /Users/joevineis/Documents/BOWEN/functional_gene_db/mu-sequence-length-selector.py -l 3000 -s 300 -fa amoA_A-master_names.faa -o amoA_ncbi_parks-sized.faa
+    python /Users/joevineis/Documents/BOWEN/functional_gene_db/mu-remove-seqs-with_Ns.py -f amoA_ncbi_parks-sized.faa -o amoA_ncbi_parks-sized-Ns.faa
+    python /Users/joevineis/Documents/BOWEN/functional_gene_db/mu-dereplicate-seqs.py -fa amoA_ncbi_parks-sized-Ns.faa -o amoA_ncbi_parks-sized-Ns-derep.faa
+    python /Users/joevineis/Documents/BOWEN/functional_gene_db/gen-add-layers-size-len.py amoA_ncbi_parks-sized-Ns-derep.faa amoA_ncbi_parks-sized-Ns-derep-add.faa
+    famsa amoA_ncbi_parks-sized-Ns-derep-add.faa amoA_ncbi_parks-sized-Ns-derep-add-famsa.faa
+    trimal -in amoA_ncbi_parks-sized-Ns-derep-add-famsa.faa -out amoA_ncbi_parks-sized-Ns-derep-add-famsa-trimal.faa -gappyout
+    FastTree amoA_ncbi_parks-sized-Ns-derep-add-famsa-trimal.faa > amoA_ncbi_parks-sized-Ns-derep-add-famsa-trimal.tre
 
     #The stuff for the ribosomal tree
-    python ../find-ribosomal-hits.py -phylo ../ncbi-parks-ribosomal.faa -fa nrfA_ncbi_parks-sized-Ns-derep-add.faa -out ribosomal-nrfA-sequences-RAW.faa
-    python ../mu-sequence-length-selector.py -fa ribosomal-nrfA-sequences-RAW.faa -l 5000 -s 1600 -o ribosomal-nrfA-sequences-1600min.faa
-    famsa ribosomal-nrfA-sequences-1600min.faa ribosomal-nrfA-sequences-1600min-famsa.faa
-    trimal -in ribosomal-nrfA-sequences-1600min-famsa.faa -out ribosomal-nrfA-sequences-1600min-famsa-trimal.faa
-    FastTree ribosomal-nrfA-sequences-1600min-famsa-trimal.faa > ribosomal-nrfA-sequences-1600min-famsa-trimal.tre
+    python /Users/joevineis/Documents/BOWEN/functional_gene_db/find-ribosomal-hits.py -phylo /Users/joevineis/Documents/BOWEN/functional_gene_db/ncbi-parks-ribosomal.faa -fa amoA_ncbi_parks-sized-Ns-derep-add.faa -out ribosomal-amoA-sequences-RAW.faa
+    python /Users/joevineis/Documents/BOWEN/functional_gene_db/mu-sequence-length-selector.py -fa ribosomal-amoA-sequences-RAW.faa -l 5000 -s 1600 -o ribosomal-amoA-sequences-1600min.faa
+    famsa ribosomal-amoA-sequences-1600min.faa ribosomal-amoA-sequences-1600min-famsa.faa
+    trimal -in ribosomal-amoA-sequences-1600min-famsa.faa -out ribosomal-amoA-sequences-1600min-famsa-trimal.faa -gappyout
+    FastTree ribosomal-amoA-sequences-1600min-famsa-trimal.faa > ribosomal-amoA-sequences-1600min-famsa-trimal.tre
 
-    rm nrfA_ncbi_parks-sized.faa nrfA_ncbi_parks-sized-Ns.faa nrfA_ncbi_parks-sized-Ns-derep.faa nrfA_ncbi_parks-sized-Ns-derep-add.faa nrfA_ncbi_parks-sized-Ns-derep-add-famsa.faa
+    rm amoA_ncbi_parks-sized.faa amoA_ncbi_parks-sized-Ns.faa amoA_ncbi_parks-sized-Ns-derep.faa amoA_ncbi_parks-sized-Ns-derep-add.faa amoA_ncbi_parks-sized-Ns-derep-add-famsa.faa
+
 
     # run the commands below on a cluster
     #makeblastdb -in nrfA_ncbi_parks-sized-Ns-derep-add.faa --dbtype 'prot' -title nrfA-blastdb -out nrfA-blastdb
